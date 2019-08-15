@@ -1,7 +1,9 @@
 package com.quvideo.qa.api;
 
 import io.restassured.RestAssured;
+import org.testng.annotations.Listeners;
 
+@Listeners({ com.quvideo.qa.api.listeners.SuiteListener.class,com.quvideo.qa.api.listeners.TestListener.class })
 public class ApiBaseCase {
     static {
         RestAssured.useRelaxedHTTPSValidation();

@@ -3,7 +3,11 @@ package com.quvideo.qa.common.tools;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
-
+import com.quvideo.qa.common.tools.MyBatisUtil;
+import com.quvideo.qa.common.tools.QuvAssert;
+import com.quvideo.qa.common.tools.RandomTools;
+import io.restassured.response.Response;
+import org.apache.ibatis.io.Resources;
 import org.dom4j.Attribute;
 import org.dom4j.Document;
 import org.dom4j.Node;
@@ -19,17 +23,15 @@ import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.*;
 import java.util.concurrent.*;
-import org.apache.ibatis.io.Resources;
 
-import static com.quvideo.qa.common.tools.Bt.LOG;
-
+import static com.quvideo.qa.common.tools.BT.LOG;
 
 /**
  * 工具类Basic tools
  */
-public class Bt {
-    // protected static Logger LOG = LogManager.getLogger(Bt.class);
-    protected static Logger LOG = LoggerFactory.getLogger(Bt.class);
+public class BT {
+    // protected static Logger LOG = LogManager.getLogger(BT.class);
+    protected static Logger LOG = LoggerFactory.getLogger(BT.class);
     public static final String RNL = System.getProperty("line.separator");//系统换行符
     private static Map<String, Properties> proertiesMap = new HashMap<String, Properties>();
     private static Map<String, String> mapperToDbxml = new ConcurrentHashMap<String, String>();
@@ -38,53 +40,13 @@ public class Bt {
     //生成随机数/字符串/日期工具库
     public static RandomTools ran = RandomTools.getInstance();
 
-    public static ConcurrentHashMap<String, String> initData(String project) {
-        ConcurrentHashMap<String, String> testData = new ConcurrentHashMap<>();
-        switch (Bt.initEnv()) {
-            case "pre":
-            case "online":
-                testData = properties2Map("/config/" + project + "/online.properties");
-                break;
-            // 按需添加，默认走qa
-            case "online-us":
-            case "online-sa":
-            case "online-ph":
-            default:
-                testData = properties2Map("/config/" + project + "/qa.properties");
-                break;
-        }
-        return testData;
-    }
+   
 
-    public static ConcurrentHashMap<String, String> properties2Map(String file) {
-        ConcurrentHashMap<String, String> testData = new ConcurrentHashMap<>();
-        Properties prop = GetProv(file);
-        for (final String name : prop.stringPropertyNames())
-            testData.put(name, prop.getProperty(name));
-        return testData;
-    }
-
-    public static String getConfigValue(String project, String key) {
-        String configValue;
-        switch (Bt.initEnv()) {
-            case "pre":
-            case "online":
-                configValue = GetProv("/config/" + project + "/online.properties", key);
-                break;
-            // 按需添加，默认走qa
-            case "online-us":
-            case "online-sa":
-            case "online-ph":
-            default:
-                configValue = GetProv("/config/" + project + "/qa.properties", key);
-                break;
-        }
-        return configValue;
-    }
+   
 
     /**
      * <pre>
-     *  e.g.     Bt.getProv("/config/application.properties", "default.env");
+     *  e.g.     BT.getProv("/config/application.properties", "default.env");
      * </pre>
      *
      * @param propertisFile 读取的配置文件路径
@@ -99,14 +61,15 @@ public class Bt {
     }
 
     /**
-     * @param propertisFile Bt.getProv("/config/application.properties")
-     * @return
+     *
+     * @param propertisFile BT.etProv("/config/application.properties")G
+     * @return Properties对象
      */
     public static Properties GetProv(String propertisFile) {
         synchronized (proertiesMap) {
             if (proertiesMap.get(propertisFile) == null) {
                 Properties p = new Properties();
-                InputStream is = Bt.class.getResourceAsStream(propertisFile);
+                InputStream is = BT.class.getResourceAsStream(propertisFile);
                 try {
                     p.load(new InputStreamReader(is, "UTF-8"));
                     is.close();
@@ -159,19 +122,21 @@ public class Bt {
         }
     }
 
+    /**
+     * 获取当前测试用例执行环境，优先从 命令行-Denv 取值，当命令行没有设置时，从工程resources//config/application.properties中读取default.env值
+     * @return
+     */
     public static String initEnv() {
         String env = null;
         env = System.getProperty("env");
         if (null == env) {
-            env = Bt.GetProv("/config/application.properties", "default.env");
+            env = BT.GetProv("/config/application.properties", "default.env");
             System.setProperty("env", env);
             LOG.info("本次应用环境配置为：" + env);
         }
         return env.trim();
     }
-
-
-
+    
 
 
     /**
@@ -180,7 +145,7 @@ public class Bt {
      * @param evnkey    第一套环境key
      * @param value     第一套环境的value
      * @param keyvalues 成对定义
-     * @return  runtime时，返回当前环境的value
+     * @return
      */
     public static Object getValueByEvn(String evnkey, Object value, Object... keyvalues) {
         Map<String, Object> kv = new HashMap<>();
@@ -188,10 +153,19 @@ public class Bt {
         for (int i = 0; i < keyvalues.length; i++) {
             kv.put((String) keyvalues[i], keyvalues[++i]);
         }
-        return kv.get(Bt.initEnv());
+        return kv.get(BT.initEnv());
     }
 
 
+    public static void colseAllMybatisSession(){
+        MyBatisUtil.closeAllSession();
+    }
+
+
+    /**
+     * 根据resources/database目录及其子目录下的mybatis的configuration xml文件实例化当前类中所有声明的Mapper类
+     * @param caseIns 包含有Mapper类生命的类实例，一般为this
+     */
     public static void initMappers(Object caseIns) {
         try {
             //for (Object caseIns : caseInsArr) {
@@ -213,6 +187,12 @@ public class Bt {
         }
     }
 
+    /**
+     * 根据resources/database目录及其子目录下的mybatis的configuration xml文件实例化Mapper类
+     * @param mapperClass  mapper类
+     * @param <T> 泛型
+     * @return   mapper类实例
+     */
     public static <T> T initMapper(Class<T> mapperClass) {
         try {
             colectMappersInfoAndinitialFactory();
@@ -241,24 +221,6 @@ public class Bt {
     }
 
 
-    public static Map<String, String> getPostManEnv(InputStream inputStream) {
-        Map<String, String> envs = new HashMap<>();
-        JSONObject jsonObject = null;
-        try {
-            jsonObject = JSON.parseObject(inputStream, JSONObject.class);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        JSONArray jsonArray = jsonObject.getJSONArray("values");
-        Iterator iterator = jsonArray.iterator();
-        JSONObject jobj = null;
-        while (iterator.hasNext()) {
-            jobj = (JSONObject) iterator.next();
-            envs.put(jobj.getString("key"), jobj.getString("value"));
-        }
-        return envs;
-    }
 
     public static Long getCurrentTime() {
         return System.currentTimeMillis();
@@ -267,8 +229,8 @@ public class Bt {
     /**
      * 把字符串转为url
      *
-     * @param urlstr   url字符串
-     * @return   URL对象
+     * @param urlstr
+     * @return  URL对象
      */
     public static URL url(String urlstr) {
         URL url = null;
@@ -280,14 +242,64 @@ public class Bt {
         return url;
     }
 
+    /**
+     * 如果响应是jsonArray，且以jsonObject作为数据类型，验证array第index个jsonobject是否包含传入的属性
+     */
+    public static void softassertJsonObjectKeystr(QuvAssert softAssert, Response response, int index, String keys) {
+        String[] keysarr = keys.split(",");
+        softassertJsonObjectKeyarr(softAssert, response, index, keysarr);
+    }
 
+    /**
+     * 如果响应body是jsonObject，验证jsonobject是否包含传入的属性
+     */
+    public static void softassertJsonObjectKeystr(QuvAssert softAssert, Response response, String keys) {
+        String[] keysarr = keys.split(",");
+        softassertJsonObjectKeyarr(softAssert, response, keysarr);
+    }
+
+    /**
+     * 验证响应body是jsonObject，jsonobject是否包含传入的属性
+     */
+    public static void softassertJsonObjectKeyarr(QuvAssert softAssert, Response response, String... keys) {
+        JSONObject jsonObject = JSON.parseObject(response.body().asString());
+        softassertJsonObjectKeyarr(softAssert, jsonObject, keys);
+    }
+
+    /**
+     * 验证响应是jsonArry，且以jsonObject作为数据类型，jsonobject是否包含传入的属性
+     */
+    public static void softassertJsonObjectKeyarr(QuvAssert softAssert, Response response, int index, String... keys) {
+        JSONArray jsonArray = JSON.parseArray(response.body().asString());
+        JSONObject jsonObject = jsonArray.getJSONObject(index);
+        softassertJsonObjectKeyarr(softAssert, jsonObject, keys);
+    }
+
+
+    /**
+     * 验证jsonobject是否包含传入的属性
+     */
+    public static void softassertJsonObjectKeyarr(QuvAssert softAssert, JSONObject jsonObject, String... keys) {
+        for (String k : keys) {
+            softAssert.assertTrue(jsonObject.containsKey(k.trim()), "返回对象不包含属性：" + k);
+        }
+    }
+
+
+    /**
+     * 验证jsonobject是否包含传入的属性
+     */
+    public static void softassertJsonObjectKeystr(QuvAssert softAssert, JSONObject jsonObject, String keys) {
+        String[] keysarr = keys.split(",");
+        softassertJsonObjectKeyarr(softAssert, jsonObject, keysarr);
+    }
 
 
     /**
      * 扫描并数据库配置
      */
     private static void colectMappersInfoAndinitialFactory() {
-        synchronized (Bt.mapperToDbxml) {
+        synchronized (BT.mapperToDbxml) {
             if (!mapperToDbxml.isEmpty()) {
                 return;
             }
@@ -305,7 +317,7 @@ public class Bt {
             databasePath = Resources.getResourceAsFile("database").getPath();
 
             //获取database目录下所有xml文件的绝对路径
-            Bt.listDirectory(databasePath, files);
+            BT.listDirectory(databasePath, files);
 
             //多线程处理mapperinfo
             CountDownLatch latch = new CountDownLatch(files.size());
@@ -314,7 +326,7 @@ public class Bt {
             List<Future<String>> resultList = new ArrayList<>();
             //遍历database目录下的多个数据源xml配置
             for (File dbxml : files) {
-                executors.submit(new ColectMappersInfoTask(dbxml, databasePath, Bt.mapperToDbxml, latch));
+                executors.submit(new ColectMappersInfoTask(dbxml, databasePath, BT.mapperToDbxml, latch));
                 //  Future<String> future =  executors.submit(new ColectMappersInfoTask(dbxml,databasePath,mapperToDbxml));
                 //  resultList.add(future);
             }
@@ -322,7 +334,7 @@ public class Bt {
             latch.await();
             latch.await(3, TimeUnit.MINUTES);
             Set<String> dbxmlset = new HashSet<>();
-            for (String dbxml : Bt.mapperToDbxml.values()) {
+            for (String dbxml : BT.mapperToDbxml.values()) {
                 dbxmlset.add(dbxml);
             }
             //多线程初始化数据库工厂
@@ -380,7 +392,7 @@ class ColectMappersInfoTask implements Runnable {
             String dbxmlPath = "database" + dbxml.getPath().replace(databasePath, "");
 
             //获取xml文件中的mapper配置，一个dbxml可能存在多个表，即多个mapper配置
-            List<Node> mapperxmls = Bt.xml(Resources.getResourceAsStream(dbxmlPath), "/configuration/mappers/mapper/@resource");
+            List<Node> mapperxmls = BT.xml(Resources.getResourceAsStream(dbxmlPath), "/configuration/mappers/mapper/@resource");
 
             Iterator it = mapperxmls.iterator();
             CountDownLatch sublatch = new CountDownLatch(mapperxmls.size());
@@ -423,13 +435,11 @@ class ColectMappersClassInfoTask implements Runnable {
 
     @Override
     public void run() {
-        LOG.debug("ColectMappersClassInfoTask start");
-        //获取mapperxml中的mapper类名，一个mapperxml中对应一个mapper类
+               //获取mapperxml中的mapper类名，一个mapperxml中对应一个mapper类
         try {
-            String mapperClass = ((Attribute) Bt.xml(Resources.getResourceAsStream(mapperxml), "/mapper/@namespace").get(0)).getValue();
+            String mapperClass = ((Attribute) BT.xml(Resources.getResourceAsStream(mapperxml), "/mapper/@namespace").get(0)).getValue();
             this.mapperToDbxml.put(mapperClass, dbxmlPath);
-            System.out.println("数据库文件：" + dbxmlPath + "  mapper文件：" + mapperxml + "    mapper类：" + mapperClass);
-            LOG.debug("ColectMappersClassInfoTask end");
+            LOG.debug("数据库文件：" + dbxmlPath + "  mapper文件：" + mapperxml + "    mapper类：" + mapperClass);
         } catch (Exception e) {
             e.printStackTrace();
         } finally {

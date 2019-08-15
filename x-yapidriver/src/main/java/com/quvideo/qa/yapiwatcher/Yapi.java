@@ -5,7 +5,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.serializer.NameFilter;
 import com.quvideo.qa.yapiwatcher.bean.*;
 import com.quvideo.qa.common.tools.BeanUtils;
-import com.quvideo.qa.common.tools.Bt;
+import com.quvideo.qa.common.tools.BT;
 import io.qameta.allure.Owner;
 import io.qameta.allure.Step;
 import io.restassured.RestAssured;
@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 
 public class Yapi {
     private static Logger LOG = LoggerFactory.getLogger(Yapi.class);
-    private static Properties properties = Bt.GetProv("/config/yapi/projectinfo.properties");
+    private static Properties properties = BT.GetProv("/config/yapi/projectinfo.properties");
     public static String yapiaddr = properties.getProperty("yapi.addr");
     public static String godtoken = properties.getProperty("yapi.godtoken");
 

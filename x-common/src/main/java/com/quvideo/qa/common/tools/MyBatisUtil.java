@@ -31,7 +31,7 @@ public abstract class MyBatisUtil {
     private static String env = null;
 
     static {
-        env = Bt.initEnv();
+        env = BT.initEnv();
     }
 
     /**
@@ -94,7 +94,7 @@ public abstract class MyBatisUtil {
          *  <property name="online.ssh.privateKey" value="config/cmdb_dsa/cmdb_id_dsa"/>
          */
         try {
-            List<?> properties = Bt.xml(Resources.getResourceAsStream(dbsourceFile), "//configuration/properties/property");
+            List<?> properties = BT.xml(Resources.getResourceAsStream(dbsourceFile), "//configuration/properties/property");
             Iterator it = properties.iterator();
 
             while (it.hasNext()) {
