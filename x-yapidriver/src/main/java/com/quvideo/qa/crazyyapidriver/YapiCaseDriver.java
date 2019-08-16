@@ -369,7 +369,7 @@ public class  YapiCaseDriver {
 class Kids{
     private  static String epicStr(String spaceName,String projectName,int projectId){
       //  return "空间名:" + spaceName + "-项目名:" + projectName + "-项目id_" + projectId;
-        return "空间[" + spaceName + "]yapi规范性检查";
+        return "空间[" + spaceName + "] yapi规范性检查";
     }
     public static void epic(InterFaceBean interFaceBean){
         Allure.epic(epicStr(interFaceBean.getProject().getSpace().getGroup_name(),interFaceBean.getProject().getName(),interFaceBean.getProject_id()));

@@ -51,7 +51,7 @@ public class BT {
      *
      * @param propertisFile 读取的配置文件路径
      * @param key           配置键
-     * @return String值
+     * @return key String值
      */
     public static String GetProv(String propertisFile, String key) {
         String value;
